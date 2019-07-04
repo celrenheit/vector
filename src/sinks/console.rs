@@ -5,6 +5,7 @@ use futures::{future, Sink};
 use serde::{Deserialize, Serialize};
 use tokio::codec::{FramedWrite, LinesCodec};
 use tokio::io;
+use crate::sinks::util::encoding::encode_logfmt;
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -32,6 +33,7 @@ pub struct ConsoleSinkConfig {
 pub enum Encoding {
     Text,
     Json,
+    Logfmt
 }
 
 #[typetag::serde(name = "console")]
@@ -56,12 +58,20 @@ impl crate::topology::config::SinkConfig for ConsoleSinkConfig {
 fn encode_event(event: Event, encoding: &Option<Encoding>) -> Result<String, ()> {
     let log = event.into_log();
 
-    if (log.is_structured() && encoding != &Some(Encoding::Text))
-        || encoding == &Some(Encoding::Json)
+    if log.is_structured() && encoding != &Some(Encoding::Text)
     {
-        let bytes =
-            serde_json::to_vec(&log.all_fields()).map_err(|e| panic!("Error encoding: {}", e))?;
-        String::from_utf8(bytes).map_err(|e| panic!("Unable to convert json to utf8: {}", e))
+        match encoding {
+            &Some(Encoding::Logfmt) => {
+                String::from_utf8(encode_logfmt(&mut log.all_fields())).map_err(|e| panic!("Unable to convert logfmt to utf8: {}", e))
+            },
+            &Some(Encoding::Json) => {
+                let bytes =
+                    serde_json::to_vec(&log.all_fields()).map_err(|e| panic!("Error encoding: {}", e))?;
+                String::from_utf8(bytes).map_err(|e| panic!("Unable to convert json to utf8: {}", e))
+            },
+            &Some(Encoding::Text) => panic!("mamak"),
+            &None => panic!("mamak")
+        }
     } else {
         let s = log
             .get(&event::MESSAGE)

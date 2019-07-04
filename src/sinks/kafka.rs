@@ -2,6 +2,7 @@ use crate::{
     buffers::Acker,
     event::{self, Event},
     sinks::util::MetadataFuture,
+    sinks::util::encoding::encode_logfmt,
 };
 use futures::{
     future::{self, poll_fn, IntoFuture},
@@ -30,6 +31,7 @@ pub struct KafkaSinkConfig {
 pub enum Encoding {
     Text,
     Json,
+    Logfmt
 }
 
 pub struct KafkaSink {
@@ -182,6 +184,7 @@ fn encode_event(
     let log = event.as_log();
 
     let body = match (encoding, log.is_structured()) {
+        (&Some(Encoding::Logfmt), _) => encode_logfmt(&mut log.all_fields()),
         (&Some(Encoding::Json), _) | (_, true) => serde_json::to_vec(&log.all_fields()).unwrap(),
         (&Some(Encoding::Text), _) | (_, false) => log
             .get(&event::MESSAGE)

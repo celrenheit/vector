@@ -15,6 +15,7 @@ use tower::Service;
 pub use batch::{Batch, BatchSink};
 pub use buffer::{Buffer, Compression};
 pub use partition::{Partition, PartitionedBatchSink};
+pub mod encoding;
 
 pub trait SinkExt<T>
 where
